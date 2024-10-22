@@ -10,10 +10,10 @@
 - Optional: May be use the principles of RAG Fusion, to query into multiple questions.
 - For the rephrase query, do a google Search to get relevant results using SEARCH API, etc
 - For each link, get the content:
-    - Chunk the content, embed and put it in a vector database.
+    - Chunk the content, embed(Decide which embedding model) and put it in a vector database[Should I use vectorDb or FAISS].
     - Pick n docs from vector database w.r.t query similarity search.
     - Rerank the chunks.
-    - Augment and send the relavant chunks with the query and get answer.
+    - Augment and send the relavant chunks with the query to the LLM(for now can use gemini and later change to llama)and get answer.
     - Use LLM as a Judge to see if the response actually answers the question or not. Iterate if needed.
 
 ### Approach 2:
