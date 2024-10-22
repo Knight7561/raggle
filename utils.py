@@ -1,19 +1,45 @@
+from typing import List
 import requests
 import os
 import json
-
+from bs4 import BeautifulSoup
 from dotenv import load_dotenv
+
+from custom_types import WebResultMetaData
 
 load_dotenv()
 
 
 
-def parse_brave_results(json_reponse):
+def parse_brave_results(json_reponse)-> List[WebResultMetaData]:
     def extract_web_metadata(data:dict):
-        return {key: data[key] for key in ('title', 'description', 'url')}
+        return WebResultMetaData(**{key: data[key] for key in ('title', 'description', 'url')})
     all_web_search = json_reponse['web']['results']
     extracted_info=list(map(extract_web_metadata,all_web_search))
     return extracted_info
+
+def scraper(webMetadata: List[WebResultMetaData])->List[WebResultMetaData]:
+    header = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36"
+    }
+    for metadata in webMetadata:
+        try:
+            response = requests.get(metadata.url,headers=header)
+            response.raise_for_status()  # Raise an error for bad responses
+            soup = BeautifulSoup(response.text, 'html.parser')
+            for script in soup(['script', 'style']):
+                script.decompose()
+            main_content = soup.find('main') or soup.find('article') or soup.body
+            if main_content:
+                text = main_content.get_text(separator='\n', strip=True)  # Use separator to maintain structure
+                # Optionally filter out short lines or noise
+                filtered_text = "\n".join(line for line in text.splitlines() if len(line) > 30)  # Filter short lines
+                filtered_text = filtered_text.encode().decode('unicode-escape')
+            metadata.scrapped_data = filtered_text if filtered_text else '' # or response.json() if it's a JSON response
+
+        except requests.RequestException as e:
+            print(f"Error fetching {metadata.url}: {e}")
+    return webMetadata
 
 def search_web_brave(query):
     api_key=os.environ.get("SEARCH_API")
