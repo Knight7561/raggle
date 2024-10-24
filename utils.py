@@ -1,4 +1,4 @@
-from typing import List
+from typing import Dict, List
 import requests
 import os
 import json
@@ -34,7 +34,7 @@ def scraper(webMetadata: List[WebResultMetaData])->List[WebResultMetaData]:
                 text = main_content.get_text(separator='\n', strip=True)  # Use separator to maintain structure
                 # Optionally filter out short lines or noise
                 filtered_text = "\n".join(line for line in text.splitlines() if len(line) > 30)  # Filter short lines
-                filtered_text = filtered_text.encode().decode('unicode-escape')
+                filtered_text=filtered_text.encode('ascii', 'ignore').decode() # applies ascii filter - removes unicode characters.
             metadata.scrapped_data = filtered_text if filtered_text else '' # or response.json() if it's a JSON response
 
         except requests.RequestException as e:
@@ -57,7 +57,6 @@ def search_web_brave(query):
     headers = {
         'X-Subscription-Token': api_key
     }
-    print(url,params,headers)
     # Send a GET request to the Brave Search API
     response = requests.get(url, params=params, headers=headers)
 
@@ -68,6 +67,22 @@ def search_web_brave(query):
     else:
         print(f"Error: {response.status_code}")
         return None
+
+
+def chunk_data(webMetadata: List[WebResultMetaData]):
+    pass
+
+# this function needs to changed.
+def chunk_results(scrape_results: Dict[str, str], size: int, overlap: int
+) -> Dict[str, List[str]]:
+    chunking_results: Dict[str, List[str]] = {}
+    for url, text in scrape_results.items():
+        chunks = []
+        for pos in range(0, len(text), size - overlap):
+            chunks.append(text[pos : pos + size])
+        chunking_results[url] = chunks
+    return chunking_results
+
 
 # # code used to parse brave output from a json file
 # Load JSON data from a file

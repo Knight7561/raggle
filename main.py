@@ -9,7 +9,8 @@ class raggle():
     Class to build a end-to-end Search.
     '''
     def __init__(self):
-        # self.searchApiKey=os.environ.get("SEARCH_API") #skipping line because getting key from the utils would be a better idea
+        # skipping line because getting key from the utils would be a better idea
+        # self.searchApiKey=os.environ.get("SEARCH_API")
         pass
 
     def get_search_results(self,query:str):
@@ -21,9 +22,8 @@ class raggle():
 
 if __name__=="__main__":
     r=raggle()
-    search_links=r.get_search_results("Latest papers in RAG")
+    search_links=r.get_search_results("What is RAG in AI?")
     scrapped_information=r.scrap_data(search_links)
-    print("reponse\n\n\n")
     scrapped_information=json.dumps(scrapped_information,default=lambda x: x.__dict__)
     with open('temp/output.json', 'w') as f:
         f.write(scrapped_information)
