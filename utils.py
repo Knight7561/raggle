@@ -11,18 +11,21 @@ load_dotenv()
 
 
 
-def parse_brave_results(json_reponse)-> List[WebResultMetaData]:
+def parse_brave_results(json_reponse) -> Dict[str,WebResultMetaData]:
     def extract_web_metadata(data:dict):
-        return WebResultMetaData(**{key: data[key] for key in ('title', 'description', 'url')})
+        return {data["url"]: WebResultMetaData(**{key: data[key] for key in ('title', 'description', 'url')})}
     all_web_search = json_reponse['web']['results']
     extracted_info=list(map(extract_web_metadata,all_web_search))
-    return extracted_info
+    result = {}
+    for d in extracted_info:
+        result.update(d)
+    return result
 
-def scraper(webMetadata: List[WebResultMetaData])->List[WebResultMetaData]:
+def scraper(webMetadata: dict[str,WebResultMetaData])->dict[str,WebResultMetaData]:
     header = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36"
     }
-    for metadata in webMetadata:
+    for key,metadata in webMetadata.items():
         try:
             response = requests.get(metadata.url,headers=header)
             response.raise_for_status()  # Raise an error for bad responses
@@ -41,7 +44,7 @@ def scraper(webMetadata: List[WebResultMetaData])->List[WebResultMetaData]:
             print(f"Error fetching {metadata.url}: {e}")
     return webMetadata
 
-def search_web_brave(query):
+def search_web_brave(query)-> Dict[str,WebResultMetaData] | None:
     api_key=os.environ.get("SEARCH_API")
     # Define the endpoint for Brave Search
     url = "https://api.search.brave.com/res/v1/web/search"
@@ -69,7 +72,7 @@ def search_web_brave(query):
         return None
 
 
-def chunk_data(webMetadata: List[WebResultMetaData]):
+def chunk_data(webMetadata: Dict[str,WebResultMetaData]):
     pass
 
 # this function needs to changed.

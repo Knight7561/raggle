@@ -7,7 +7,8 @@ Steps/Map:
 2. Query transformation/Re-writing
     - Can be delayed for the entire cycle to be complete.
 3. Web Search Results
-4. Parse and chunk the results
+4. Parse and chunk the results [Current Step]
+    - Realised that instead of storing Response items as list, its better if we store it as a dictorinary with url as key. --Done
 5. Store in FAISS/VectorDB
 6. Dense Reterive chunks
 7. Deduplicate and rerank elements

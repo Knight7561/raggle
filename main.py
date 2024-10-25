@@ -13,16 +13,17 @@ class raggle():
         # self.searchApiKey=os.environ.get("SEARCH_API")
         pass
 
-    def get_search_results(self,query:str):
+    def get_search_results(self,query:str) -> dict[str,WebResultMetaData] | None:
         return search_web_brave(query)
 
-    def scrap_data(self,webMetadata:List[WebResultMetaData]):
+    def scrap_data(self,webMetadata:dict[str,WebResultMetaData]) -> dict[str,WebResultMetaData]:
         return scraper(webMetadata)
 
 
 if __name__=="__main__":
     r=raggle()
     search_links=r.get_search_results("What is RAG in AI?")
+    #TODO: if search_links is None, then log error.
     scrapped_information=r.scrap_data(search_links)
     scrapped_information=json.dumps(scrapped_information,default=lambda x: x.__dict__)
     with open('temp/output.json', 'w') as f:
