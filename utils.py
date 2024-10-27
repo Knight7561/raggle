@@ -81,23 +81,24 @@ def search_web_brave(query) -> Dict[str, WebResultMetaData] | None:
 
 
 def chunk_data_and_preprocess(
-    webMetadata: Dict[str, WebResultMetaData], size: int = 1000, overlap: int = 20
+    webMetadata: Dict[str, WebResultMetaData], size: int = 1000, overlap: int = 200
 ) -> dict[str, list]:
     for url, webMetaData in webMetadata.items():
         text = webMetaData.scrapped_data
-        processed_chunks:dict[str, list] = {"documents": [], "ids": [], "metaData": []}
+        processed_chunks: dict[str, list] = {"documents": [], "ids": [], "metaData": []}
         for pos in range(0, len(text), size - overlap):
             processed_chunks["documents"].append(text[pos : pos + size])
-            processed_chunks['ids'].append(url+'_'+str(pos))
-            processed_chunks["metaData"].append({
-                'title':webMetaData.title,'url':webMetaData.url
-            })
+            processed_chunks["ids"].append(url + "_" + str(pos))
+            processed_chunks["metaData"].append(
+                {"title": webMetaData.title, "url": webMetaData.url}
+            )
     return processed_chunks
 
-def read_prompts(prompt_name,file_path='assets/prompts.json'):
+
+def read_prompts(prompt_name, file_path="assets/prompts.json"):
     """Reads prompts from a specified JSON file and returns them as a list."""
     try:
-        with open(file_path, 'r') as file:
+        with open(file_path, "r") as file:
             data = json.load(file)
             return data.get(prompt_name, [])
     except FileNotFoundError:
@@ -110,19 +111,14 @@ def read_prompts(prompt_name,file_path='assets/prompts.json'):
 
 
 def google_genai_inference(prompt):
+    generation_config = {
+        "temperature": 1,
+        "top_p": 0.95,
+        "top_k": 64,
+        "response_mime_type": "text/plain",
+    }
     google_api_key = os.environ.get("GOOGLE_API_KEY")
     genai.configure(api_key=google_api_key)
-    model = genai.GenerativeModel("gemini-1.5-flash")
+    model = genai.GenerativeModel(model_name="gemini-1.5-pro",generation_config=generation_config)
     response = model.generate_content(prompt)
     return response.text
-
-
-# # code used to parse brave output from a json file
-# Load JSON data from a file
-# def load_json_from_file(file_path):
-#     with open(file_path, 'r') as file:
-#         return json.load(file)
-
-# file_path = './temp/brave_output.json'
-# json_object = load_json_from_file(file_path)
-# print(parse_brave_results(json_object))

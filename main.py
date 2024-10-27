@@ -1,5 +1,4 @@
-import json
-from typing import Dict, List
+from typing import Dict
 from utils import (
     search_web_brave,
     scraper,
@@ -10,6 +9,7 @@ from utils import (
 from custom_types import WebResultMetaData
 import chromadb
 from chromadb.utils import embedding_functions
+import logging
 
 
 class raggle:
@@ -18,6 +18,8 @@ class raggle:
     """
 
     def __init__(self, embedding_model=None):
+        logger = logging.getLogger(__name__)
+        logging.basicConfig(filename='run_log.log', encoding='utf-8', level=logging.DEBUG)
         self.embedding_model = (
             embedding_functions.SentenceTransformerEmbeddingFunction(
                 model_name="all-MiniLM-L6-v2"
@@ -26,6 +28,8 @@ class raggle:
             else embedding_model
         )
         self.__init_vectorDB()
+
+        logger.debug('raggle is initlised and ready')
 
     def __init_vectorDB(self):
             self.chroma_client = chromadb.Client()
@@ -64,27 +68,30 @@ class raggle:
         prompt=SYSTEM_PROMPT+USER_PROMPT.format(query=query,context=context)
         return google_genai_inference(prompt)
 
+    def search_web(self,QUERY):
+        search_links = self.get_search_results(QUERY)
+        logging.debug('Internet metadata search completed ')
+        if search_links is None:
+            print("No Search could be done on internet")
+            logging.error('ERROR: No Search could be done on internet')
+            exit(-1)
+        scrapped_information = self.scrap_data(search_links)
+        logging.debug('Internet data scrapping completed ')
+        logging.debug('data_ingest to vectorDB: START')
+        self.ingest_data(scrapped_information)
+        logging.debug('data_ingest to vectorDB: DONE')
+        logging.debug('Searching for Query:: START')
+        query_search_results = self.search_query(QUERY)
+        logging.debug('Searching for Query:: RELAVENT CHUNKS RETERIEVED')
+        generated_reponse=self.generate_answer(QUERY, query_search_results)
+        logging.debug('Searching for Query:: COMPLETED WITH RESPONSE')
+        return generated_reponse
+
 
 if __name__ == "__main__":
-    r = raggle()
     QUERY = "What are the different compoenents of RAG"
-    search_links = r.get_search_results(QUERY)
-    # TODO: if search_links is None, then log error.
-    if search_links is None:
-        print("No Search could be done on internet")
-        exit(-1)
-        #TODO add logging
-    scrapped_information = r.scrap_data(search_links)
-    r.ingest_data(scrapped_information)
-    query_search_results = r.search_query(QUERY)
-    generated_reponse=r.generate_answer(QUERY, query_search_results)
-    print("######## Query",QUERY)
+    r = raggle()
+    generated_reponse=r.search_web(QUERY)
     print(generated_reponse)
-
-    # scrapped_information = json.dumps(
-    #     query_search_results, default=lambda x: x.__dict__
-    # )
-    # with open("temp/output.json", "w") as f:
-    #     f.write(scrapped_information)
     with open("temp/output.txt", "w") as f:
         f.write(generated_reponse)
