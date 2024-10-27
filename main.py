@@ -10,7 +10,6 @@ from utils import (
 from custom_types import WebResultMetaData
 import chromadb
 from chromadb.utils import embedding_functions
-import os
 
 
 class raggle:
@@ -26,11 +25,13 @@ class raggle:
             if embedding_model is None
             else embedding_model
         )
-        self.chroma_client = chromadb.Client()
-        self.collection = self.chroma_client.get_or_create_collection(
-            name="my_collection", embedding_function=self.embedding_model
-        )
+        self.__init_vectorDB()
 
+    def __init_vectorDB(self):
+            self.chroma_client = chromadb.Client()
+            self.collection = self.chroma_client.get_or_create_collection(
+                name="my_collection", embedding_function=self.embedding_model
+            )
     def get_search_results(self, query: str) -> Dict[str, WebResultMetaData] | None:
         return search_web_brave(query)
 
@@ -69,6 +70,10 @@ if __name__ == "__main__":
     QUERY = "What are the different compoenents of RAG"
     search_links = r.get_search_results(QUERY)
     # TODO: if search_links is None, then log error.
+    if search_links is None:
+        print("No Search could be done on internet")
+        exit(-1)
+        #TODO add logging
     scrapped_information = r.scrap_data(search_links)
     r.ingest_data(scrapped_information)
     query_search_results = r.search_query(QUERY)
@@ -81,3 +86,5 @@ if __name__ == "__main__":
     # )
     # with open("temp/output.json", "w") as f:
     #     f.write(scrapped_information)
+    with open("temp/output.txt", "w") as f:
+        f.write(generated_reponse)
