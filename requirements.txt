@@ -1,3 +1,4 @@
 pydantic
 bs4
 requests
+chromadb
