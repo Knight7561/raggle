@@ -3,6 +3,7 @@ import requests
 import os
 import json
 from bs4 import BeautifulSoup
+import google.generativeai as genai
 from dotenv import load_dotenv
 
 from custom_types import WebResultMetaData
@@ -93,6 +94,27 @@ def chunk_data_and_preprocess(
             })
     return processed_chunks
 
+def read_prompts(prompt_name,file_path='assets/prompts.json'):
+    """Reads prompts from a specified JSON file and returns them as a list."""
+    try:
+        with open(file_path, 'r') as file:
+            data = json.load(file)
+            return data.get(prompt_name, [])
+    except FileNotFoundError:
+        print(f"Error: The file {file_path} does not exist.")
+    except json.JSONDecodeError:
+        print(f"Error: The file {file_path} is not a valid JSON.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+    return []
+
+
+def google_genai_inference(prompt):
+    google_api_key = os.environ.get("GOOGLE_API_KEY")
+    genai.configure(api_key=google_api_key)
+    model = genai.GenerativeModel("gemini-1.5-flash")
+    response = model.generate_content(prompt)
+    return response.text
 
 
 # # code used to parse brave output from a json file

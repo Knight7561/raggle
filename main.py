@@ -1,9 +1,16 @@
 import json
 from typing import Dict, List
-from utils import search_web_brave, scraper, chunk_data_and_preprocess
+from utils import (
+    search_web_brave,
+    scraper,
+    chunk_data_and_preprocess,
+    read_prompts,
+    google_genai_inference,
+)
 from custom_types import WebResultMetaData
 import chromadb
 from chromadb.utils import embedding_functions
+import os
 
 
 class raggle:
@@ -43,25 +50,34 @@ class raggle:
     def count_collection(self):
         return self.collection.count()
 
-    def search_query(self,query):
+    def search_query(self, query):
         results = self.collection.query(
-        query_texts=[query], # Chroma will embed this for you
-        n_results=5 # how many results to return
+            query_texts=[query],  # Chroma will embed this for you
         )
         return results
+
+    def generate_answer(self, query, query_search_results):
+        SYSTEM_PROMPT:str = read_prompts("SYSTEM_PROMPT")
+        USER_PROMPT:str = str(read_prompts("USER_PROMPT"))
+        context:str = "###".join(query_search_results["documents"][0])
+        prompt=SYSTEM_PROMPT+USER_PROMPT.format(query=query,context=context)
+        return google_genai_inference(prompt)
 
 
 if __name__ == "__main__":
     r = raggle()
-    QUERY="What is RAG in AI?"
+    QUERY = "What are the different compoenents of RAG"
     search_links = r.get_search_results(QUERY)
     # TODO: if search_links is None, then log error.
     scrapped_information = r.scrap_data(search_links)
     r.ingest_data(scrapped_information)
-    query_search_results=r.search_query(QUERY)
+    query_search_results = r.search_query(QUERY)
+    generated_reponse=r.generate_answer(QUERY, query_search_results)
+    print("######## Query",QUERY)
+    print(generated_reponse)
 
-    scrapped_information = json.dumps(
-        query_search_results, default=lambda x: x.__dict__
-    )
-    with open("temp/output.json", "w") as f:
-        f.write(scrapped_information)
+    # scrapped_information = json.dumps(
+    #     query_search_results, default=lambda x: x.__dict__
+    # )
+    # with open("temp/output.json", "w") as f:
+    #     f.write(scrapped_information)
