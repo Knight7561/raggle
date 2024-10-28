@@ -5,20 +5,34 @@ import json
 from bs4 import BeautifulSoup
 import google.generativeai as genai
 from dotenv import load_dotenv
-
+import logging
 from custom_types import WebResultMetaData
 
 load_dotenv()
 
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
-def parse_brave_results(json_reponse) -> Dict[str, WebResultMetaData]:
-    def extract_web_metadata(data: dict):
+#Constants
+BRAVE_SEARCH_URL = "https://api.search.brave.com/res/v1/web/search"
+DEFAULT_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36"
+}
+SEARCH_API_KEY = os.environ.get("SEARCH_API")
+GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
+PROMPTS_FILE_PATH = "assets/prompts.json"
+
+
+def extract_web_metadata(data: dict):
+        """Extracts metadata from web search result."""
         return {
             data["url"]: WebResultMetaData(
                 **{key: data[key] for key in ("title", "description", "url")}
             )
         }
 
+def parse_brave_results(json_reponse) -> Dict[str, WebResultMetaData]:
+    """Parses the JSON response from Brave search results."""
     all_web_search = json_reponse["web"]["results"]
     extracted_info = list(map(extract_web_metadata, all_web_search))
     result = {}
@@ -28,10 +42,9 @@ def parse_brave_results(json_reponse) -> Dict[str, WebResultMetaData]:
 
 
 def scraper(webMetadata: Dict[str, WebResultMetaData]) -> Dict[str, WebResultMetaData]:
-    header = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36"
-    }
-    for key, metadata in webMetadata.items():
+    """Scrapes the content from web pages using the provided metadata."""
+    header = DEFAULT_HEADERS
+    for _, metadata in webMetadata.items():
         try:
             response = requests.get(metadata.url, headers=header)
             response.raise_for_status()  # Raise an error for bad responses
@@ -55,34 +68,37 @@ def scraper(webMetadata: Dict[str, WebResultMetaData]) -> Dict[str, WebResultMet
             )  # or response.json() if it's a JSON response
 
         except requests.RequestException as e:
-            print(f"Error fetching {metadata.url}: {e}")
+            logger.error(f"Error fetching {metadata.url}: {e}")
     return webMetadata
 
 
 def search_web_brave(query) -> Dict[str, WebResultMetaData] | None:
-    api_key = os.environ.get("SEARCH_API")
+    """Searches the web using Brave and returns metadata."""
+    if not SEARCH_API_KEY:
+        logger.error("SEARCH_API environment variable not set.")
+        return None
     # Define the endpoint for Brave Search
-    url = "https://api.search.brave.com/res/v1/web/search"
-
-    # Set up the parameters for the search
-    params = {"q": query, "source": "web", "count": 10}  # Number of results to return
-
+    api_key = os.environ.get(SEARCH_API_KEY)
     # Set up headers including the API key
     headers = {"X-Subscription-Token": api_key}
     # Send a GET request to the Brave Search API
-    response = requests.get(url, params=params, headers=headers)
+    response = requests.get(
+        BRAVE_SEARCH_URL,
+        params={"q": query, "source": "web", "count": 10},
+        headers=headers)
 
-    # Check if w   the request was successful
+    # Check if the request was successful
     if response.status_code == 200:
         return parse_brave_results(response.json())  # Return the JSON response
     else:
-        print(f"Error: {response.status_code}")
+        logger.error(f"Error during Brave search: {e} response.status_code : {response.status_code}")
         return None
 
 
 def chunk_data_and_preprocess(
     webMetadata: Dict[str, WebResultMetaData], size: int = 1000, overlap: int = 200
 ) -> dict[str, list]:
+    """Chunks the scraped data into manageable pieces for processing."""
     for url, webMetaData in webMetadata.items():
         text = webMetaData.scrapped_data
         processed_chunks: dict[str, list] = {"documents": [], "ids": [], "metaData": []}
@@ -95,29 +111,33 @@ def chunk_data_and_preprocess(
     return processed_chunks
 
 
-def read_prompts(prompt_name, file_path="assets/prompts.json"):
+def read_prompts(prompt_name, file_path=PROMPTS_FILE_PATH):
     """Reads prompts from a specified JSON file and returns them as a list."""
     try:
         with open(file_path, "r") as file:
             data = json.load(file)
             return data.get(prompt_name, [])
     except FileNotFoundError:
-        print(f"Error: The file {file_path} does not exist.")
+        logger.error(f"Error: The file {file_path} does not exist.")
     except json.JSONDecodeError:
-        print(f"Error: The file {file_path} is not a valid JSON.")
+        logger.error(f"Error: The file {file_path} is not a valid JSON.")
     except Exception as e:
-        print(f"An error occurred: {e}")
+        logger.error(f"An error occurred: {e}")
     return []
 
 
 def google_genai_inference(prompt):
+    """Generates content using Google's generative AI model."""
     generation_config = {
         "temperature": 1,
         "top_p": 0.95,
         "top_k": 64,
         "response_mime_type": "text/plain",
     }
-    google_api_key = os.environ.get("GOOGLE_API_KEY")
+    if not GOOGLE_API_KEY:
+        logger.error("GOOGLE_API_KEY environment variable not set.")
+        return "API key not set."
+    google_api_key = os.environ.get(GOOGLE_API_KEY)
     genai.configure(api_key=google_api_key)
     model = genai.GenerativeModel(model_name="gemini-1.5-pro",generation_config=generation_config)
     response = model.generate_content(prompt)

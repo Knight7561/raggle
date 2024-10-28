@@ -11,6 +11,14 @@ import chromadb
 from chromadb.utils import embedding_functions
 import logging
 
+# Constants
+DEFAULT__EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
+COLLECTION_NAME = "my_collection"
+SYSTEM_PROMPT_KEY = "SYSTEM_PROMPT"
+USER_PROMPT_KEY = "USER_PROMPT"
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(filename='run_log.log', encoding='utf-8', level=logging.DEBUG)
 
 class Raggle:
     """
@@ -28,11 +36,9 @@ class Raggle:
         - embedding_model: Optional custom embedding model. If None,
           a default model is used.
         """
-        logger = logging.getLogger(__name__)
-        logging.basicConfig(filename='run_log.log', encoding='utf-8', level=logging.DEBUG)
         self.embedding_model = (
             embedding_functions.SentenceTransformerEmbeddingFunction(
-                model_name="all-MiniLM-L6-v2"
+                model_name=DEFAULT__EMBEDDING_MODEL_NAME
             )
             if embedding_model is None
             else embedding_model
@@ -45,7 +51,7 @@ class Raggle:
             """Initializes the vector database (Chroma, for now) for storing embeddings."""
             self.chroma_client = chromadb.Client()
             self.collection = self.chroma_client.get_or_create_collection(
-                name="my_collection", embedding_function=self.embedding_model
+                name=COLLECTION_NAME, embedding_function=self.embedding_model
             )
     def get_search_results(self, query: str) -> Dict[str, WebResultMetaData] | None:
         """
@@ -141,8 +147,8 @@ class Raggle:
         - The generated response based on the query and context.
         """
         try:
-            SYSTEM_PROMPT:str = read_prompts("SYSTEM_PROMPT")
-            USER_PROMPT:str = str(read_prompts("USER_PROMPT"))
+            SYSTEM_PROMPT:str = read_prompts(SYSTEM_PROMPT_KEY)
+            USER_PROMPT:str = str(read_prompts(USER_PROMPT_KEY))
             context:str = "###".join(query_search_results["documents"][0])
             prompt=SYSTEM_PROMPT+USER_PROMPT.format(query=query,context=context)
             return google_genai_inference(prompt)
@@ -183,6 +189,5 @@ if __name__ == "__main__":
     QUERY = "What are the different compoenents of RAG"
     r = Raggle()
     generated_reponse=r.search_web(QUERY)
-    print(generated_reponse)
     with open("temp/output.txt", "w") as f:
         f.write(generated_reponse)
