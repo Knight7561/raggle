@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, List, Tuple
 import requests
 import os
 import json
@@ -7,13 +7,15 @@ import google.generativeai as genai
 from dotenv import load_dotenv
 import logging
 from custom_types import WebResultMetaData
+from sentence_transformers import CrossEncoder
+import numpy as np
 
 load_dotenv()
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-#Constants
+# Constants
 BRAVE_SEARCH_URL = "https://api.search.brave.com/res/v1/web/search"
 DEFAULT_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36"
@@ -24,12 +26,12 @@ PROMPTS_FILE_PATH = "assets/prompts.json"
 
 
 def extract_web_metadata(data: dict):
-        """Extracts metadata from web search result."""
-        return {
-            data["url"]: WebResultMetaData(
-                **{key: data[key] for key in ("title", "description", "url")}
-            )
-        }
+    """Extracts metadata from web search result."""
+    return {
+        data["url"]: WebResultMetaData(
+            **{key: data[key] for key in ("title", "description", "url")}
+        )
+    }
 
 def parse_brave_results(json_reponse) -> Dict[str, WebResultMetaData]:
     """Parses the JSON response from Brave search results."""
@@ -77,21 +79,22 @@ def search_web_brave(query) -> Dict[str, WebResultMetaData] | None:
     if not SEARCH_API_KEY:
         logger.error("SEARCH_API environment variable not set.")
         return None
-    # Define the endpoint for Brave Search
-    api_key = os.environ.get(SEARCH_API_KEY)
     # Set up headers including the API key
-    headers = {"X-Subscription-Token": api_key}
+    headers = {"X-Subscription-Token": SEARCH_API_KEY}
     # Send a GET request to the Brave Search API
     response = requests.get(
         BRAVE_SEARCH_URL,
         params={"q": query, "source": "web", "count": 10},
-        headers=headers)
+        headers=headers,
+    )
 
     # Check if the request was successful
     if response.status_code == 200:
         return parse_brave_results(response.json())  # Return the JSON response
     else:
-        logger.error(f"Error during Brave search: {e} response.status_code : {response.status_code}")
+        logger.error(
+            f"Error during Brave search: {e} response.status_code : {response.status_code}"
+        )
         return None
 
 
@@ -110,6 +113,32 @@ def chunk_data_and_preprocess(
             )
     return processed_chunks
 
+
+def rerank_documents(query: str, relevent_documents: dict) -> dict:
+    """
+    Reranks documents based on their relevance to the query using a Cross-Encoder.
+
+    Parameters:
+        query (str): The original search query.
+        documents (dict): List of document texts to be reranked, of format
+            {'ids': [[...]], 'distances': [[...]], 'metadatas': [[...]], 'embeddings': None, 'documents': [[...]], 'uris': None, 'data': None}
+
+    Returns:
+        List[Tuple[str, float]]: A list of tuples where each tuple contains
+                                  a document and its corresponding relevance score.
+    """
+    reranker = CrossEncoder("cross-encoder/ms-marco-TinyBERT-L-2")
+    inputs = [[query, doc] for doc in relevent_documents["documents"][0]]
+    scores = reranker.predict(inputs)
+    relevent_documents["reranked_scores"] = [list(scores)]
+    sorted_indices = np.argsort(scores)[::-1]
+    for i in relevent_documents.keys():
+        relevent_documents[i] = (
+            [[relevent_documents[i][0][idx] for idx in sorted_indices]]
+            if relevent_documents[i] is not None
+            else relevent_documents[i]
+        )
+    return relevent_documents
 
 def read_prompts(prompt_name, file_path=PROMPTS_FILE_PATH):
     """Reads prompts from a specified JSON file and returns them as a list."""
@@ -137,8 +166,9 @@ def google_genai_inference(prompt):
     if not GOOGLE_API_KEY:
         logger.error("GOOGLE_API_KEY environment variable not set.")
         return "API key not set."
-    google_api_key = os.environ.get(GOOGLE_API_KEY)
-    genai.configure(api_key=google_api_key)
-    model = genai.GenerativeModel(model_name="gemini-1.5-pro",generation_config=generation_config)
+    genai.configure(api_key=GOOGLE_API_KEY)
+    model = genai.GenerativeModel(
+        model_name="gemini-1.5-pro", generation_config=generation_config
+    )
     response = model.generate_content(prompt)
     return response.text

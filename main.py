@@ -4,6 +4,7 @@ from utils import (
     scraper,
     chunk_data_and_preprocess,
     read_prompts,
+    rerank_documents,
     google_genai_inference,
 )
 from custom_types import WebResultMetaData
@@ -14,7 +15,6 @@ import logging
 # Constants
 DEFAULT__EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
 COLLECTION_NAME = "my_collection"
-SYSTEM_PROMPT_KEY = "SYSTEM_PROMPT"
 USER_PROMPT_KEY = "USER_PROMPT"
 
 logger = logging.getLogger(__name__)
@@ -66,7 +66,7 @@ class Raggle:
         try:
                 return search_web_brave(query)
         except Exception as e:
-                self.logger.error(f"Error during web search: {e}")
+                logger.error(f"Error during web search: {e}")
                 return None
 
     def scrape_data(
@@ -84,7 +84,7 @@ class Raggle:
         try:
             return scraper(webMetadata)
         except Exception as e:
-            self.logger.error(f"Error during data scraping: {e}")
+            logger.error(f"Error during data scraping: {e}")
             return {}
 
     def ingest_data(self, webMetadata: Dict[str, WebResultMetaData]):
@@ -101,9 +101,9 @@ class Raggle:
                 ids=processed_chunks["ids"],
                 metadatas=processed_chunks["metaData"],
             )
-            self.logger.debug("Data ingested to vectorDB successfully.")
+            logger.debug("Data ingested to vectorDB successfully.")
         except Exception as e:
-            self.logger.error(f"Error during data ingestion to vectorDB: {e}")
+            logger.error(f"Error during data ingestion to vectorDB: {e}")
 
 
     def count_collection(self):
@@ -131,9 +131,11 @@ class Raggle:
                 )
             return results
         except Exception as e:
-            self.logger.error(f"Error during search query: {e}")
+            logger.error(f"Error during search query: {e}")
             return {}
 
+    def rerank_documents(self,query,relevent_docs):
+        return rerank_documents(query,relevent_docs)
 
     def generate_answer(self, query, query_search_results):
         """
@@ -147,13 +149,12 @@ class Raggle:
         - The generated response based on the query and context.
         """
         try:
-            SYSTEM_PROMPT:str = read_prompts(SYSTEM_PROMPT_KEY)
             USER_PROMPT:str = str(read_prompts(USER_PROMPT_KEY))
             context:str = "###".join(query_search_results["documents"][0])
-            prompt=SYSTEM_PROMPT+USER_PROMPT.format(query=query,context=context)
+            prompt=USER_PROMPT.format(query=query,context=context)
             return google_genai_inference(prompt)
         except Exception as e:
-            self.logger.error(f"Error during answer generation: {e}")
+            logger.error(f"Error during answer generation: {e}")
             return "Error generating answer."
 
     def search_web(self,QUERY):
@@ -169,9 +170,8 @@ class Raggle:
         search_links = self.get_search_results(QUERY)
         logging.debug('Internet metadata search completed ')
         if search_links is None:
-            print("No Search could be done on internet")
             logging.error('ERROR: No Search could be done on internet')
-            exit(-1)
+            return
         scrapped_information = self.scrape_data(search_links)
         logging.debug('Internet data scrapping completed ')
         logging.debug('data_ingest to vectorDB: START')
@@ -180,7 +180,9 @@ class Raggle:
         logging.debug('Searching for Query:: START')
         query_search_results = self.get_relevent_documents(QUERY)
         logging.debug('Searching for Query:: RELAVENT CHUNKS RETERIEVED')
-        generated_reponse=self.generate_answer(QUERY, query_search_results)
+        query_reranked_results=self.rerank_documents(QUERY,query_search_results)
+        logging.debug('Searching for Query:: RELAVENT CHUNKS RERANKED')
+        generated_reponse=self.generate_answer(QUERY, query_reranked_results)
         logging.debug('Searching for Query:: COMPLETED WITH RESPONSE')
         return generated_reponse
 
