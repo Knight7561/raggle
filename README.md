@@ -1,10 +1,14 @@
 # raggle
 
-# Your Project Name
-
 ## Overview
 
 Your Project Name is a command-line conversational AI tool built on Retrieval-Augmented Generation (RAG) principles. It searches the web for information based on user queries and processes the results to provide informative responses.
+
+### Git branch Index
+- [main](https://github.com/Knight7561/raggle/tree/main): Main showcase code
+- [develop](https://github.com/Knight7561/raggle/tree/develop): Code under current development
+- [idea-pitch](https://github.com/Knight7561/raggle/tree/idea-pitch) : Branch to document Ideas
+- [A1](https://github.com/Knight7561/raggle/tree/a1): Idea 1 of implementation.
 
 ## Features
 
