@@ -6,7 +6,7 @@ Your Project Name is a command-line conversational AI tool built on Retrieval-Au
 
 ### Git branch Index
 - [main](https://github.com/Knight7561/raggle/tree/main): Main showcase code
-- [develop](https://github.com/Knight7561/raggle/tree/develop): Code under current development
+- [develop](https://github.com/Knight7561/raggle/tree/develop): Code under current development [**Check out for code**]
 - [idea-pitch](https://github.com/Knight7561/raggle/tree/idea-pitch) : Branch to document Ideas
 - [A1](https://github.com/Knight7561/raggle/tree/a1): Idea 1 of implementation.
 
