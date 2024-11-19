@@ -1,3 +1,5 @@
+import argparse
+import json
 from typing import Dict
 from utils import (
     search_web_brave,
@@ -16,6 +18,7 @@ import logging
 DEFAULT__EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
 COLLECTION_NAME = "my_collection"
 USER_PROMPT_KEY = "USER_PROMPT"
+OUTPUT_FILE_PATH="temp/output.txt"
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(filename='run_log.log', encoding='utf-8', level=logging.DEBUG)
@@ -28,7 +31,7 @@ class Raggle:
     and generating responses based on user queries.
     """
 
-    def __init__(self, embedding_model=None):
+    def __init__(self, embedding_model=None,store_intermediate_results=False):
         """
         Initializes the Raggle class.
 
@@ -43,6 +46,7 @@ class Raggle:
             if embedding_model is None
             else embedding_model
         )
+        self.store_intermediate_results=store_intermediate_results
         self.__init_vectorDB()
 
         logger.debug('raggle is initlised and ready')
@@ -180,6 +184,12 @@ class Raggle:
         logging.debug('Searching for Query:: START')
         query_search_results = self.get_relevent_documents(QUERY)
         logging.debug('Searching for Query:: RELAVENT CHUNKS RETERIEVED')
+        if self.store_intermediate_results==True:
+            scrapped_information = json.dumps(
+                query_search_results, default=lambda x: x.__dict__
+            )
+            with open("temp/inter-results.json", "w") as f:
+                f.write(scrapped_information)
         query_reranked_results=self.rerank_documents(QUERY,query_search_results)
         logging.debug('Searching for Query:: RELAVENT CHUNKS RERANKED')
         generated_reponse=self.generate_answer(QUERY, query_reranked_results)
@@ -188,8 +198,17 @@ class Raggle:
 
 
 if __name__ == "__main__":
-    QUERY = "What are the different compoenents of RAG"
+    parser = argparse.ArgumentParser(prog='myprogram')
+    parser.add_argument('-q','--query', help='Query input to search the web')
+    args=parser.parse_args()
+    QUERY=args.query
+    if not QUERY:
+         logger.error('Query not provided as input argument')
+         parser.print_help()
+         exit(0)
     r = Raggle()
     generated_reponse=r.search_web(QUERY)
-    with open("temp/output.txt", "w") as f:
+    print(generated_reponse)
+    with open(OUTPUT_FILE_PATH, "w") as f:
         f.write(generated_reponse)
+    print("\n\n\n Response will also be stored at ",OUTPUT_FILE_PATH)
