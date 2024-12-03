@@ -1,6 +1,6 @@
 # raggle
 For this approach a1:
-
+### Focused on implmenting web search
 Steps/Map:
 1. Accept the query in CLI
     1.1. Accept this query in a UI
