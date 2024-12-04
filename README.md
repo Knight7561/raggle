@@ -34,7 +34,7 @@
 
 ### Prerequisites
 
-- [Python](https://www.python.org/) (version 3.x)
+- [Python](https://www.python.org/) (version 3.10 and above)
 - Required Python packages (see below)
 
 ### Installation
