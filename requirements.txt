@@ -1,4 +1,7 @@
+numpy==1.26.4
 pydantic
 bs4
 requests
 chromadb
+google-generativeai
+sentence_transformers
