@@ -2,7 +2,7 @@
 
 ## Overview
 
-Your Project Name is a command-line conversational AI tool built on Retrieval-Augmented Generation (RAG) principles. It searches the web for information based on user queries and processes the results to provide informative responses.
+**raggle** is a command-line conversational AI tool built on Retrieval-Augmented Generation (RAG) principles. It searches the web for information based on user queries and processes the results to provide informative responses.
 
 ### Git branch Index
 - [main](https://github.com/Knight7561/raggle/tree/main): Main showcase code
