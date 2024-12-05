@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple
+from typing import Dict
 import requests
 import os
 import json
@@ -93,7 +93,7 @@ def search_web_brave(query) -> Dict[str, WebResultMetaData] | None:
         return parse_brave_results(response.json())  # Return the JSON response
     else:
         logger.error(
-            f"Error during Brave search: {e} response.status_code : {response.status_code}"
+            f"Error during Brave search: {response._content} response.status_code : {response.status_code}"
         )
         return None
 
@@ -102,9 +102,9 @@ def chunk_data_and_preprocess(
     webMetadata: Dict[str, WebResultMetaData], size: int = 1000, overlap: int = 200
 ) -> dict[str, list]:
     """Chunks the scraped data into manageable pieces for processing."""
+    processed_chunks: dict[str, list] = {"documents": [], "ids": [], "metaData": []}
     for url, webMetaData in webMetadata.items():
         text = webMetaData.scrapped_data
-        processed_chunks: dict[str, list] = {"documents": [], "ids": [], "metaData": []}
         for pos in range(0, len(text), size - overlap):
             processed_chunks["documents"].append(text[pos : pos + size])
             processed_chunks["ids"].append(url + "_" + str(pos))
@@ -128,16 +128,21 @@ def rerank_documents(query: str, relevent_documents: dict) -> dict:
                                   a document and its corresponding relevance score.
     """
     reranker = CrossEncoder("cross-encoder/ms-marco-TinyBERT-L-2")
+    if not len(relevent_documents["documents"][0])>0:
+        logger.error(f"Error: The No relevant documents found to rerank.")
+        return relevent_documents
     inputs = [[query, doc] for doc in relevent_documents["documents"][0]]
     scores = reranker.predict(inputs)
     relevent_documents["reranked_scores"] = [list(scores)]
     sorted_indices = np.argsort(scores)[::-1]
     for i in relevent_documents.keys():
-        relevent_documents[i] = (
-            [[relevent_documents[i][0][idx] for idx in sorted_indices]]
-            if relevent_documents[i] is not None
-            else relevent_documents[i]
-        )
+        # Below line avoids sorting in any key which iis not related to data.
+        if len(relevent_documents[i][0])==len(sorted_indices):
+            relevent_documents[i] = (
+                [[relevent_documents[i][0][idx] for idx in sorted_indices]]
+                if relevent_documents[i] is not None
+                else relevent_documents[i]
+            )
     return relevent_documents
 
 def read_prompts(prompt_name, file_path=PROMPTS_FILE_PATH):
@@ -172,3 +177,9 @@ def google_genai_inference(prompt):
     )
     response = model.generate_content(prompt)
     return response.text
+
+
+def rewrite_query(query):
+    QUERY_REWRITE_PROMPT:str = str(read_prompts('QUERY_REWRITE_PROMPT'))
+    prompt=QUERY_REWRITE_PROMPT.format(query=query)
+    return google_genai_inference(prompt)
