@@ -8,6 +8,7 @@ from utils import (
     read_prompts,
     rerank_documents,
     google_genai_inference,
+    rewrite_query
 )
 from custom_types import WebResultMetaData
 import chromadb
@@ -21,7 +22,7 @@ USER_PROMPT_KEY = "USER_PROMPT"
 OUTPUT_FILE_PATH="temp/output.txt"
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(filename='run_log.log', encoding='utf-8', level=logging.DEBUG)
+logging.basicConfig(filename='run_log.log', encoding='utf-8', level=logging.INFO)
 
 class Raggle:
     """
@@ -68,7 +69,7 @@ class Raggle:
         - A dictionary containing web result metadata or None if no results found.
         """
         try:
-                return search_web_brave(query)
+            return search_web_brave(rewrite_query(query))
         except Exception as e:
                 logger.error(f"Error during web search: {e}")
                 return None
@@ -154,7 +155,7 @@ class Raggle:
         """
         try:
             USER_PROMPT:str = str(read_prompts(USER_PROMPT_KEY))
-            context:str = "###".join(query_search_results["documents"][0])
+            context:str = "###"+"###".join(query_search_results["documents"][0])
             prompt=USER_PROMPT.format(query=query,context=context)
             return google_genai_inference(prompt)
         except Exception as e:
