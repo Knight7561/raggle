@@ -136,11 +136,13 @@ def rerank_documents(query: str, relevent_documents: dict) -> dict:
     relevent_documents["reranked_scores"] = [list(scores)]
     sorted_indices = np.argsort(scores)[::-1]
     for i in relevent_documents.keys():
-        relevent_documents[i] = (
-            [[relevent_documents[i][0][idx] for idx in sorted_indices]]
-            if relevent_documents[i] is not None
-            else relevent_documents[i]
-        )
+        # Below line avoids sorting in any key which iis not related to data.
+        if len(relevent_documents[i][0])==len(sorted_indices):
+            relevent_documents[i] = (
+                [[relevent_documents[i][0][idx] for idx in sorted_indices]]
+                if relevent_documents[i] is not None
+                else relevent_documents[i]
+            )
     return relevent_documents
 
 def read_prompts(prompt_name, file_path=PROMPTS_FILE_PATH):

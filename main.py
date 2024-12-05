@@ -132,7 +132,7 @@ class Raggle:
         """
         try:
             results = self.collection.query(
-                query_texts=[query],  # Chroma will embed this for you
+                query_texts=[query],  # Chroma will embed this for you and fetch top 10 results by default
                 )
             return results
         except Exception as e:
